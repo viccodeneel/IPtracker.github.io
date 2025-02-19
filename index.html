@@ -5,34 +5,177 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>IP Tracker</title>
 	<link rel="stylesheet" type="text/css" href="IP.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
    </head>
 <body>
 
    <div class="banner">IP ADDRESS Tracker</div>
-
-    <div class="map">
-   <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.948416308193!2d-0.1586614249673846!3d5.574645194405926!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xfdf9ab1a9026d2b%3A0x2344f30f73a3f96d!2s4390%20Kwakwranya%20St%2C%20Accra!5e0!3m2!1sen!2sgh!4v1739806177795!5m2!1sen!2sgh" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-</div>
       
- <input type="text" class="search-input" placeholder="192.168.1.1">
-    <div class="arrow"> </div>
+ <input type="text" id="ipInput" placeholder="Enter IP address..." />
+    <button onclick="search(),getIPInfo()"> > </button> 
+
+    <div class="map" id="map"></div>
+
+
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([20, 0], 2); // Default view (worldwide)
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var marker = L.marker([40.7128, -74.0060]).addTo(map)
+            .bindPopup("<b>Default Location</b><br>New York, USA").openPopup();
+
+        const API_KEY = "8a0dcbfa352314056e4ff7c7c584b2f6"; // Replace with your API key
+        const API_URL = "https://your-api.com/location"; // Replace with your API endpoint
+
+
+        function search() {
+            var query = document.getElementById("ipInput").value.trim();
+            if (!query) {
+                alert("Please enter a location or IP address.");
+                return;
+            }
+
+            if (isValidIP(query)) {
+                searchByIP(query);
+            } else {
+                searchByLocation(query);
+            }
+        }
+
+        function isValidIP(ip) {
+            // Simple regex to check if input looks like an IPv4 or IPv6 address
+            return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || /^[a-fA-F0-9:]+$/.test(ip);
+        }
+
+        function searchByIP(ip) {
+            fetch(`http://ip-api.com/json/${ip}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status !== "success") {
+                        alert("Invalid IP address or location not found.");
+                        return;
+                    }
+
+                    var lat = data.lat;
+                    var lon = data.lon;
+
+                    animateFly(lat, lon, `IP: ${data.query}<br>Location: ${data.city}, ${data.country}`);
+                })
+                .catch(error => console.error("Error fetching IP data:", error));
+        }
+
+        function searchByLocation(location) {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${location}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        alert("Location not found.");
+                        return;
+                    }
+
+                    var lat = data[0].lat;
+                    var lon = data[0].lon;
+
+                    animateFly(lat, lon, `<b>${location}</b><br>Latitude: ${lat}<br>Longitude: ${lon}`);
+                })
+                .catch(error => console.error("Error fetching location:", error));
+        }
+
+        function animateFly(lat, lon, popupText) {
+            map.flyTo([lat, lon], 10, { duration: 2 }); // Smooth fly animation
+
+            if (marker) {
+                marker.setLatLng([lat, lon]);
+            } else {
+                marker = L.marker([lat, lon]).addTo(map);
+            }
+
+            marker.bindPopup(popupText).openPopup();
+        }
+
+
+    </script>
+
   
-  <div class="info">
+  <div class="info" id="info">
   	<ul>
-  	<a href="#"><h6> IP ADDRESS </h6> <br> <h2>192.212.174.101</h2> </a>
-  	<a href="#"><h6> LOCATION </h6> <br> <h2>Brooklyn, NY <br>10001</h2> </a>
-  	<a href="#"><h6> TIMEZONE </h6> <br><h2> UTC -05:00</h2> </a>
-  	<a href="#"><h6> ISP </h6> <br> <h2>SpaceX<br> Starlink</h2> </a>
+  	<a href="#"><h6> IP ADDRESS </h6>  <h2 id="ipaddress"></h2> </a>
+   <a href="#"><h6> LOCATION </h6>  <h2 id="location"></h2> </a>
+   <a href="#"><h6> TIMEZONE </h6> <h2 id="timezone"></h2> </a>
+   <a href="#"><h6> ISP </h6>  <h2 id="isp"></h2> </a>
   	</ul>
   </div>
+  <script>
+    let ipaddress= document.getElementById('ipaddress');
+    let location=document.getElementById('location');
+    let timezone=document.getElementById('timezone');
+    let isp=document.getElementById('isp');
+
+ </script>
+
+ <script>
+        async function getIPInfo( ) {
+            try {
+               const ip = document.getElementById("ipInput").value.trim();
+
+               let url = ip ? `http://ip-api.com/json/${ip}` : "http://ip-api.com/json/";
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.status === "fail") {
+                    document.getElementById("info").innerHTML = "<p style='color:red;'>Invalid IP address. Try again.</p>";
+                    return;
+                }
+              
+              document.getElementById('ipaddress').textContent = `${data.query} `;
+              
+               document.getElementById('location').textContent = `${data.city} `;
+
+              document.getElementById('timezone').textContent = `${data.timezone} `; 
+
+               document.getElementById('isp').textContent = `${data.isp} `;
+           
+                
+            } catch (error) {
+                document.getElementById("info").innerHTML = "Failed to retrieve data.";
+            }
+        }
+
+        // Auto-fetch user's IP info on page load
+        getIPInfo();
+
+        // Search function when clicking the button
+        document.querySelector("arrow").addEventListener("click", function() {
+            const ip = document.getElementById("ipInput").value.trim();
+            if (ip) getIPInfo(ip);
+        });
+    </script>
 
   <div class="mobile-only">
   <ul>
-  	<a href="#"><h6> IP ADDRESS </h6>  <h2>192.212.174.101</h2> </a>
-  	<a href="#"><h6> LOCATION </h6>  <h2>Brooklyn, NY 10001</h2> </a>
-  	<a href="#"><h6> TIMEZONE </h6> <h2> UTC -05:00</h2> </a>
-  	<a href="#"><h6> ISP </h6>  <h2>SpaceX Starlink</h2> </a>
+  	<a href="#"><h6> IP ADDRESS </h6>  <h2 id="ipaddress">192.212.174.101</h2> </a>
+  	<a href="#"><h6> LOCATION </h6>  <h2 id="location">Brooklyn, NY 10001</h2> </a>
+  	<a href="#"><h6> TIMEZONE </h6> <h2 id="timezone"> UTC -05:00</h2> </a>
+  	<a href="#"><h6> ISP </h6>  <h2 id="isp">SpaceX Starlink</h2> </a>
   	</ul>
  </div>
+
+ <!-- 192.168.21.162 -->
+ <script>
+    let ipaddress= document.getElementById('ipaddress');
+    let location=document.getElementById('location');
+    let timezone=document.getElementById('timezone');
+    let isp=document.getElementById('isp');
+
+ </script>
   </body>
 </html>
+
+
